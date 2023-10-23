@@ -13,12 +13,12 @@
 //An array of kernel matrices to be used for image convolution.  
 //The indexes of these match the enumeration from the header file. ie. algorithms[BLUR] returns the kernel corresponding to a box blur.
 Matrix algorithms[]={
-    {{0,-1,0},{-1,4,-1},{0,-1,0}},
-    {{0,-1,0},{-1,5,-1},{0,-1,0}},
-    {{1/9.0,1/9.0,1/9.0},{1/9.0,1/9.0,1/9.0},{1/9.0,1/9.0,1/9.0}},
-    {{1.0/16,1.0/8,1.0/16},{1.0/8,1.0/4,1.0/8},{1.0/16,1.0/8,1.0/16}},
-    {{-2,-1,0},{-1,1,1},{0,1,2}},
-    {{0,0,0},{0,1,0},{0,0,0}}
+    {{0,-1,0},{-1,4,-1},{0,-1,0}}, // EDGE
+    {{0,-1,0},{-1,5,-1},{0,-1,0}}, // SHARPEN this works
+    {{1/9.0,1/9.0,1/9.0},{1/9.0,1/9.0,1/9.0},{1/9.0,1/9.0,1/9.0}}, // BLUR
+    {{1.0/16,1.0/8,1.0/16},{1.0/8,1.0/4,1.0/8},{1.0/16,1.0/8,1.0/16}}, // GAUSE_BLUR
+    {{-2,-1,0},{-1,1,1},{0,1,2}}, // EMBOSS this works
+    {{0,0,0},{0,1,0},{0,0,0}} // IDENTITY this works? 
 };
 
 
@@ -96,9 +96,10 @@ int main(int argc,char** argv){
     stbi_set_flip_vertically_on_load(0); 
     if (argc!=3) return Usage();
     char* fileName=argv[1];
-    if (!strcmp(argv[1],"pic4.jpg")&&!strcmp(argv[2],"gauss")){
+    if (!strcmp(argv[1],"pic4.jpg")&&!strcmp(argv[2],"gauss")){ // how is this checking for a case if its NOT
         printf("You have applied a gaussian filter to Gauss which has caused a tear in the time-space continum.\n");
     }
+    // theres no error checking for if arg is not a valid filter?
     enum KernelTypes type=GetKernelType(argv[2]);
 
     Image srcImage,destImage,bwImage;   
