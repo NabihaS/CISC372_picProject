@@ -96,7 +96,7 @@ int main(int argc,char** argv){
     stbi_set_flip_vertically_on_load(0); 
     if (argc!=3) return Usage();
     char* fileName=argv[1];
-    if (!strcmp(argv[1],"pic4.jpg")&&!strcmp(argv[2],"gauss")){ // how is this checking for a case if its NOT
+    if (!strcmp(argv[1],"pic4.jpg")&&!strcmp(argv[2],"gauss")){ // its bc strcmp return 0 if its equal (which is not truthy) 
         printf("You have applied a gaussian filter to Gauss which has caused a tear in the time-space continum.\n");
     }
     // theres no error checking for if arg is not a valid filter?
