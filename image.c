@@ -70,7 +70,6 @@ void* convolute(void* arg){ // this new parameter is now the struct
             }
         }
     }
-    // do i free the struct here ????
 }
 /*
  In image convolution, each channel (bit) is often processed separately, 
@@ -135,36 +134,36 @@ int main(int argc,char** argv){
     int thread_count=atoi(argv[3]);
     // array to keep track of threads. so one thread is thread_handles[i]
     pthread_t* thread_handles=(pthread_t*)malloc(thread_count*sizeof(pthread_t));
-    // FLAG potentially store structs in array
-
+    
+    // Allocate mem for all individual structs, and free later
+    ThreadData* thread_datas=(ThreadData*)malloc(thread_count * sizeof(ThreadData)); 
 
     int local_n=srcImage.height/thread_count;
     // create threads. thread==i==rank
     for(int thread=0;thread<thread_count;thread++){ 
-        // create new struct for corresponding thread to execute
-        ThreadData d; // FLAG probably need to malloc, but need to find a way to free it 
-        d.srcImage=&srcImage;
-        d.destImage=&destImage;
+        thread_datas[thread].srcImage=&srcImage;
+        thread_datas[thread].destImage=&destImage;
         // use a for loop to actually get the element you cant just pass a whole array to copy it into a struct value
         // algorithms[type]=algorithms[0]= {{0,-1,0},{-1,4,-1},{0,-1,0}}
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                d.algorithm[i][j] = algorithms[type][i][j];
+                thread_datas[thread].algorithm[i][j] = algorithms[type][i][j];
             }
         }
 
         // define the start and end for each thread
         // FLAG. try printing these to make sure theyre actually updated
-        d.my_start=local_n*thread;
-        d.my_end=d.my_start+local_n;
+        thread_datas[thread].my_start=local_n*thread;
+        thread_datas[thread].my_end=thread_datas[thread].my_start+local_n;
         // convolute will now be executed as 'main' for threads
-        pthread_create(&thread_handles[thread],NULL,&convolute,&d); //so this struct is being passed in for each thread with corresponding data
+        pthread_create(&thread_handles[thread],NULL,&convolute,&thread_datas[thread]); //so this struct is being passed in for each thread with corresponding data
         // how do i know each thread is properly writing to the DestImage??
 
         // FLAG account for the remainder rows if its not evenly divisible by thread count
         // FLAG right now your threads dont know their rank. add rank to the struct and allow convolute to have rank?
 
         // or do i free the struct here ????
+        
     }
     // do the join 
     for(int thread=0;thread<thread_count;thread++){
@@ -175,6 +174,7 @@ int main(int argc,char** argv){
     stbi_write_png("output.png",destImage.width,destImage.height,destImage.bpp,destImage.data,destImage.bpp*destImage.width);
     stbi_image_free(srcImage.data);
     free(thread_handles);
+    free(thread_datas);
     free(destImage.data);
     t2=time(NULL);
     printf("Took %ld seconds\n",t2-t1);
