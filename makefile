@@ -1,7 +1,7 @@
 
 image:image.c image.h
-	gcc -g image.c -o image -lm
+	gcc -g image.c -o image -lm -lpthread
 ompimage:ompimage.c image.h
-	gcc -g ompimage.c -o image -lm
+	gcc -g ompimage.c -o image -lm 
 clean:
 	rm -f image output.png

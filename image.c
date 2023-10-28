@@ -3,12 +3,15 @@
 #include <time.h>
 #include <string.h>
 #include "image.h"
+#include <pthread.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+
+/*** Version using Pthreads*****/
 
 //An array of kernel matrices to be used for image convolution.  
 //The indexes of these match the enumeration from the header file. ie. algorithms[BLUR] returns the kernel corresponding to a box blur.
@@ -56,17 +59,26 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 //            destImage: A pointer to a  pre-allocated (including space for the pixel array) structure to receive the convoluted image.  It should be the same size as srcImage
 //            algorithm: The kernel matrix to use for the convolution
 //Returns: Nothing
-void convolute(Image* srcImage,Image* destImage,Matrix algorithm){
-    int row,pix,bit,span;
-    span=srcImage->bpp*srcImage->bpp;
-    for (row=0;row<srcImage->height;row++){
-        for (pix=0;pix<srcImage->width;pix++){
-            for (bit=0;bit<srcImage->bpp;bit++){
-                destImage->data[Index(pix,row,srcImage->width,bit,srcImage->bpp)]=getPixelValue(srcImage,pix,row,bit,algorithm);
+void* convolute(void* arg){ // this new parameter is now the struct
+    ThreadData* d = (ThreadData*)arg;
+    int span=d->srcImage->bpp*d->srcImage->bpp;
+    // row and pix need to be private, they are like i and j
+    for (int row=d->my_start;row<d->my_end;row++){ // can parallelize this loop
+        for (int pix=0;pix<d->srcImage->width;pix++){
+            for (int bit=0;bit<d->srcImage->bpp;bit++){
+                d->destImage->data[Index(pix,row,d->srcImage->width,bit,d->srcImage->bpp)]=getPixelValue(d->srcImage,pix,row,bit,d->algorithm);
             }
         }
     }
+    // do i free the struct here ????
 }
+/*
+ In image convolution, each channel (bit) is often processed separately, 
+ and the final pixel value in the destination image is obtained by combining the results from all channels. 
+*/
+// Q: what is data vs bpp in Image type? BPP=bits per pix i think every image has a BPP per pixel, that needs to be iterated thru at each pix
+// uint8 that get pixel returns just ensures a value btwn 0-255
+// the inner most loop goes thru the color channel, i.e. bpp
 
 //Usage: Prints usage information for the program
 //Returns: -1
@@ -90,11 +102,15 @@ enum KernelTypes GetKernelType(char* type){
 //main:
 //argv is expected to take 2 arguments.  First is the source file name (can be jpg, png, bmp, tga).  Second is the lower case name of the algorithm.
 int main(int argc,char** argv){
+    // argc is num arguments
+    //argv is the input array
+    // default e.g.= [./image pic1.jpg edge]
+    // so to add an argument, the argc needs to check for more and thread_count needs to be argv[i] => [./image pic1.jpg edge 4]
     long t1,t2;
     t1=time(NULL);
 
     stbi_set_flip_vertically_on_load(0); 
-    if (argc!=3) return Usage();
+    if (argc!=4) return Usage();
     char* fileName=argv[1];
     if (!strcmp(argv[1],"pic4.jpg")&&!strcmp(argv[2],"gauss")){ // its bc strcmp return 0 if its equal (which is not truthy) 
         printf("You have applied a gaussian filter to Gauss which has caused a tear in the time-space continum.\n");
@@ -112,10 +128,53 @@ int main(int argc,char** argv){
     destImage.height=srcImage.height;
     destImage.width=srcImage.width;
     destImage.data=malloc(sizeof(uint8_t)*destImage.width*destImage.bpp*destImage.height);
-    convolute(&srcImage,&destImage,algorithms[type]);
+
+    /**** Creating threads ****/
+
+    // last argument for thread count
+    int thread_count=atoi(argv[3]);
+    // array to keep track of threads. so one thread is thread_handles[i]
+    pthread_t* thread_handles=(pthread_t*)malloc(thread_count*sizeof(pthread_t));
+    // FLAG potentially store structs in array
+
+
+    int local_n=srcImage.height/thread_count;
+    // create threads. thread==i==rank
+    for(int thread=0;thread<thread_count;thread++){ 
+        // create new struct for corresponding thread to execute
+        ThreadData d; // FLAG probably need to malloc, but need to find a way to free it 
+        d.srcImage=&srcImage;
+        d.destImage=&destImage;
+        // use a for loop to actually get the element you cant just pass a whole array to copy it into a struct value
+        // algorithms[type]=algorithms[0]= {{0,-1,0},{-1,4,-1},{0,-1,0}}
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                d.algorithm[i][j] = algorithms[type][i][j];
+            }
+        }
+
+        // define the start and end for each thread
+        // FLAG. try printing these to make sure theyre actually updated
+        d.my_start=local_n*thread;
+        d.my_end=d.my_start+local_n;
+        // convolute will now be executed as 'main' for threads
+        pthread_create(&thread_handles[thread],NULL,&convolute,&d); //so this struct is being passed in for each thread with corresponding data
+        // how do i know each thread is properly writing to the DestImage??
+
+        // FLAG account for the remainder rows if its not evenly divisible by thread count
+        // FLAG right now your threads dont know their rank. add rank to the struct and allow convolute to have rank?
+
+        // or do i free the struct here ????
+    }
+    // do the join 
+    for(int thread=0;thread<thread_count;thread++){
+        pthread_join(thread_handles[thread], NULL);
+    }
+
+
     stbi_write_png("output.png",destImage.width,destImage.height,destImage.bpp,destImage.data,destImage.bpp*destImage.width);
     stbi_image_free(srcImage.data);
-    
+    free(thread_handles);
     free(destImage.data);
     t2=time(NULL);
     printf("Took %ld seconds\n",t2-t1);
