@@ -161,8 +161,6 @@ int main(int argc,char** argv){
 
         // FLAG account for the remainder rows if its not evenly divisible by thread count
         // FLAG right now your threads dont know their rank. add rank to the struct and allow convolute to have rank?
-
-        // or do i free the struct here ????
         
     }
     // do the join 
