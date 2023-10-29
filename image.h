@@ -20,6 +20,7 @@ typedef struct{
     Image* srcImage;
     Image* destImage;
     Matrix algorithm;
+    int my_rank;
     int my_start;
     int my_end;
 

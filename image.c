@@ -62,6 +62,7 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 void* convolute(void* arg){ // this new parameter is now the struct
     ThreadData* d = (ThreadData*)arg;
     int span=d->srcImage->bpp*d->srcImage->bpp;
+    printf("Thread %d started\n", d->my_rank);
     // row and pix need to be private, they are like i and j
     for (int row=d->my_start;row<d->my_end;row++){ // can parallelize this loop
         for (int pix=0;pix<d->srcImage->width;pix++){
@@ -70,6 +71,7 @@ void* convolute(void* arg){ // this new parameter is now the struct
             }
         }
     }
+    printf("Thread %d finished\n", d->my_rank);
 }
 /*
  In image convolution, each channel (bit) is often processed separately, 
@@ -137,7 +139,6 @@ int main(int argc,char** argv){
     
     // Allocate mem for all individual structs, and free later
     ThreadData* thread_datas=(ThreadData*)malloc(thread_count * sizeof(ThreadData)); 
-
     int local_n=srcImage.height/thread_count;
     // create threads. thread==i==rank
     for(int thread=0;thread<thread_count;thread++){ 
@@ -150,6 +151,7 @@ int main(int argc,char** argv){
                 thread_datas[thread].algorithm[i][j] = algorithms[type][i][j];
             }
         }
+        thread_datas[thread].my_rank=thread;
 
         // define the start and end for each thread
         // FLAG. try printing these to make sure theyre actually updated
@@ -159,8 +161,8 @@ int main(int argc,char** argv){
         pthread_create(&thread_handles[thread],NULL,&convolute,&thread_datas[thread]); //so this struct is being passed in for each thread with corresponding data
         // how do i know each thread is properly writing to the DestImage??
 
-        // FLAG account for the remainder rows if its not evenly divisible by thread count
-        // FLAG right now your threads dont know their rank. add rank to the struct and allow convolute to have rank?
+        // FLAG account for the remainder rows if its not evenly divisible by thread count??
+        // FLAG right now your threads dont know their rank. add rank to the struct and allow convolute to have rank???
         
     }
     // do the join 
