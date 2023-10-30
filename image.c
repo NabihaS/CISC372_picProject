@@ -62,7 +62,7 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 void* convolute(void* arg){ // this new parameter is now the struct
     ThreadData* d = (ThreadData*)arg;
     int span=d->srcImage->bpp*d->srcImage->bpp;
-    printf("Thread %d started\n", d->my_rank);
+    // printf("Thread %d started\n", d->my_rank);
     // row and pix need to be private, they are like i and j
     for (int row=d->my_start;row<d->my_end;row++){ // can parallelize this loop
         for (int pix=0;pix<d->srcImage->width;pix++){
@@ -71,7 +71,7 @@ void* convolute(void* arg){ // this new parameter is now the struct
             }
         }
     }
-    printf("Thread %d finished\n", d->my_rank);
+    // printf("Thread %d finished\n", d->my_rank);
 }
 /*
  In image convolution, each channel (bit) is often processed separately, 
